@@ -1,0 +1,30 @@
+[package]
+name = "pine-analytics"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+linera-sdk = { workspace = true }
+async-graphql = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+tokio = { workspace = true }
+futures = { workspace = true }
+log = { workspace = true }
+thiserror = { workspace = true }
+hex = { workspace = true }
+
+[dev-dependencies]
+proptest = "1.0"
+tokio-test = "0.4"
+
+[[bin]]
+name = "pine_analytics_contract"
+path = "src/contract.rs"
+
+[[bin]]
+name = "pine_analytics_service"
+path = "src/service.rs"
+
+[lib]
+path = "src/lib.rs"
