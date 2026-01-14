@@ -14,7 +14,7 @@ Pine Analytics provides:
 ## 📁 Project Structure
 
 ```
-pine-analytics/
+pine/
 ├── pine-analytics/          # Rust backend (contract + service)
 │   ├── src/
 │   │   ├── contract.rs     # Smart contract logic
@@ -40,7 +40,8 @@ pine-analytics/
 │   └── QUICK_START.md
 ├── scripts/                 # Build and deployment scripts
 │   ├── build.sh
-│   └── deploy.sh
+│   ├── deploy.sh
+│   └── run.sh
 └── .kiro/specs/            # Specification documents
     └── pine-analytics/
         ├── requirements.md
@@ -57,7 +58,7 @@ pine-analytics/
 - Linera CLI 0.15.7
 - wasm32-unknown-unknown target
 
-### Installation
+### Installation (WSL/Linux/macOS)
 
 ```bash
 # Install Rust
@@ -67,35 +68,28 @@ rustup target add wasm32-unknown-unknown
 
 # Install Linera CLI
 cargo install --locked linera-service@0.15.7
-
-# Install Node.js dependencies
-cd frontend && npm install
 ```
 
-### Build
+### One-command run (recommended)
 
 ```bash
-# Build everything
-./scripts/build.sh
-
-# Or build individually
-cd pine-analytics
-cargo build --release --target wasm32-unknown-unknown
-
-cd ../frontend
-npm run build
+# Builds backend WASM + frontend, deploys with Linera, starts GraphQL service,
+# and runs the frontend dev server.
+chmod +x scripts/run.sh
+./scripts/run.sh
 ```
 
-### Deploy
+By default:
+- **Backend GraphQL**: `http://localhost:8080/graphql`
+- **Backend health**: `http://localhost:8080/health`
+- **Frontend**: `http://localhost:5173`
+
+You can override:
 
 ```bash
-# Deploy to Linera
-export ADMIN_OWNER="your-owner-address"
-./scripts/deploy.sh
-
-# Start frontend
-cd frontend
-npm run dev
+export WALLET=1
+export PORT=8080
+./scripts/run.sh
 ```
 
 ## 📚 Documentation
@@ -111,9 +105,9 @@ npm run dev
 
 ### Specification Documents
 
-- **[Requirements](. kiro/specs/pine-analytics/requirements.md)** - 10 user stories, 50 acceptance criteria
-- **[Design](. kiro/specs/pine-analytics/design.md)** - Architecture, components, 32 correctness properties
-- **[Tasks](. kiro/specs/pine-analytics/tasks.md)** - 28 implementation tasks
+- **[Requirements](.kiro/specs/pine-analytics/requirements.md)** - 10 user stories, 50 acceptance criteria
+- **[Design](.kiro/specs/pine-analytics/design.md)** - Architecture, components, 32 correctness properties
+- **[Tasks](.kiro/specs/pine-analytics/tasks.md)** - 28 implementation tasks
 
 ## 🏗️ Architecture
 
@@ -354,40 +348,14 @@ MIT License - See LICENSE file for details
 
 ## 🚀 Deployment
 
-### Quick Deploy to Testnet
-
-```bash
-# 1. Setup wallet and get tokens
-./scripts/setup-testnet.sh
-./scripts/get-tokens.sh
-
-# 2. Build project
-./scripts/build.sh
-
-# 3. Deploy to testnet
-./scripts/deploy-testnet.sh
-
-# 4. Start frontend
-cd frontend
-npm run dev
-```
-
 ### Local Development
 
 ```bash
-# Build and deploy locally
-./scripts/build.sh
-./scripts/deploy.sh
-
-# Start service (if not auto-started)
-linera service up
-
-# Start frontend
-cd frontend
-npm run dev
+chmod +x scripts/run.sh
+./scripts/run.sh
 ```
 
-For detailed deployment instructions, see [scripts/README.md](scripts/README.md) and [TESTNET_DEPLOYMENT.md](TESTNET_DEPLOYMENT.md).
+For detailed scripts usage, see [scripts/README.md](scripts/README.md).
 
 ## 🔗 Resources
 

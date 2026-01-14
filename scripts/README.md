@@ -36,6 +36,14 @@ Builds the entire project.
 - Builds frontend
 - **Usage**: `./scripts/build.sh`
 
+#### `run.sh` (recommended)
+Builds, deploys, starts the Linera GraphQL service, and starts the frontend dev server.
+- Builds backend WASM + frontend
+- Deploys and creates the application
+- Starts Linera service (GraphQL) on `PORT` (default `8080`)
+- Starts Vite dev server on `5173`
+- **Usage**: `./scripts/run.sh`
+
 ### Deployment Scripts
 
 #### `deploy-testnet.sh`
@@ -168,6 +176,7 @@ All scripts require:
 - **TESTNET_DEPLOYMENT.md** - Complete deployment guide
 - **QUICK_START_DEPLOYMENT.md** - Quick reference
 - **DEPENDENCIES.md** - Dependency requirements
+
 
 
 

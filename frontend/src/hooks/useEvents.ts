@@ -1,9 +1,14 @@
 import { useQuery } from '@apollo/client';
 import { EVENTS_QUERY } from '../graphql/queries';
 
-export function useEvents(filters?: any, pagination?: any) {
+interface UseEventsOptions {
+  pollInterval?: number;
+}
+
+export function useEvents(filters?: any, pagination?: any, options?: UseEventsOptions) {
   const { data, loading, error, fetchMore } = useQuery(EVENTS_QUERY, {
     variables: { filters, pagination },
+    pollInterval: options?.pollInterval ?? 0,
   });
   
   const loadMore = () => {
@@ -28,6 +33,3 @@ export function useEvents(filters?: any, pagination?: any) {
     loadMore,
   };
 }
-
-
-

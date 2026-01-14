@@ -4,7 +4,8 @@ import { APPLICATION_METRICS_QUERY } from '../graphql/queries';
 export function useMetrics(applicationId: string) {
   const { data, loading, error, refetch } = useQuery(APPLICATION_METRICS_QUERY, {
     variables: { applicationId },
-    pollInterval: 5000, // Refresh every 5 seconds
+    pollInterval: 5000,
+    skip: !applicationId,
   });
   
   return {
@@ -14,6 +15,3 @@ export function useMetrics(applicationId: string) {
     refetch,
   };
 }
-
-
-
