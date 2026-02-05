@@ -210,7 +210,7 @@ impl AnalyticsService {
 
     async fn get_time_series(
         &self,
-        metric: &str,
+        _metric: &str,
         time_range: TimeRange,
         granularity_ms: u64,
     ) -> Vec<TimeSeriesPoint> {
@@ -250,7 +250,7 @@ impl AnalyticsService {
         &self,
         metric: &str,
         window_size: u64,
-        time_range: TimeRange,
+        _time_range: TimeRange,
     ) -> Vec<MovingAveragePoint> {
         // Get metric values in time order
         let values: Vec<(u64, f64)> = self
@@ -268,7 +268,7 @@ impl AnalyticsService {
         &self,
         metric: &str,
         sensitivity: f64,
-        time_range: Option<TimeRange>,
+        _time_range: Option<TimeRange>,
     ) -> Vec<AnomalyEvent> {
         let values: Vec<(u64, f64)> = self
             .state
@@ -302,7 +302,7 @@ impl AnalyticsService {
         }
     }
 
-    async fn get_correlation(&self, metrics: Vec<String>, time_range: TimeRange) -> CorrelationMatrix {
+    async fn get_correlation(&self, metrics: Vec<String>, _time_range: TimeRange) -> CorrelationMatrix {
         // Collect values for each metric
         let metric_values: Vec<Vec<f64>> = metrics
             .iter()

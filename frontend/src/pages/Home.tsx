@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import Dashboard from '@/components/Dashboard';
 import Layout from '@/components/Layout';
-import Aurora from "@/components/Aurora";
 
 export default function HomePage() {
     const [selectedApp, setSelectedApp] = useState<string | null>(null);

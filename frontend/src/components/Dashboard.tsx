@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from 'react';
-import { Activity, Flame, Radio, Users, Cpu, ArrowUpRight, ArrowDownRight, TrendingUp } from 'lucide-react';
+import { Activity, Flame, Users, ArrowUpRight, ArrowDownRight, TrendingUp, Link2 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import ApplicationSelector from './ApplicationSelector';
 import TimeSeriesChart from './TimeSeriesChart';
@@ -9,7 +9,10 @@ import ApplicationsPanel from './ApplicationsPanel';
 import { useApplications } from '../hooks/useApplications';
 import { useMetrics } from '../hooks/useMetrics';
 import { useEvents } from '../hooks/useEvents';
+import { useChains } from '../hooks/useChains';
+import { useLinera } from '../hooks/useLinera';
 import { formatNumber } from '../utils/formatters';
+import { truncateAddress } from '../lib/linera';
 
 interface DashboardProps {
   selectedApp: string | null;
@@ -27,7 +30,10 @@ export default function Dashboard({
   const { applications, loading, error, refetch } = useApplications();
   const [view, setView] = useState<'overview' | 'comparison'>('overview');
 
-  const { metrics, loading: metricsLoading } = useMetrics(selectedApp || '');
+  const { chains, activeChain } = useChains();
+  const { isConnected, chainId } = useLinera();
+
+  const { metrics } = useMetrics(selectedApp || '');
   const {
     events,
     loading: eventsLoading,
@@ -161,8 +167,13 @@ export default function Dashboard({
             </div>
 
             <div className="space-y-6">
-              <TopContractsPanel topContracts={topContracts} loading={eventsLoading} />
-              <SystemHealthPanel />
+              <TopContractsPanel topContracts={topContracts} />
+              <ChainStatusPanel
+                isConnected={isConnected}
+                chainId={chainId}
+                chains={chains}
+                activeChain={activeChain}
+              />
             </div>
           </div>
 
@@ -187,7 +198,7 @@ export default function Dashboard({
 }
 
 function StatCard({ title, value, trend, isPositive, icon, color, isCurrency }: any) {
-  const colors = {
+  const colorMap: Record<string, string> = {
     emerald: "from-emerald-500/20 to-emerald-500/5 border-emerald-500/20",
     blue: "from-blue-500/20 to-blue-500/5 border-blue-500/20",
     purple: "from-purple-500/20 to-purple-500/5 border-purple-500/20",
@@ -195,7 +206,7 @@ function StatCard({ title, value, trend, isPositive, icon, color, isCurrency }: 
   };
 
   return (
-    <div className={`relative overflow-hidden rounded-2xl bg-gradient-to-br ${colors[color]} border backdrop-blur-sm p-6 group transition-all duration-300 hover:-translate-y-1 hover:shadow-xl`}>
+    <div className={`relative overflow-hidden rounded-2xl bg-gradient-to-br ${colorMap[color] || colorMap.emerald} border backdrop-blur-sm p-6 group transition-all duration-300 hover:-translate-y-1 hover:shadow-xl`}>
       <div className="flex justify-between items-start mb-4">
         <div className="p-3 bg-white/5 rounded-xl backdrop-blur-md border border-white/5 group-hover:scale-110 transition-transform duration-300">
           {icon}
@@ -217,7 +228,7 @@ function StatCard({ title, value, trend, isPositive, icon, color, isCurrency }: 
   );
 }
 
-function TopContractsPanel({ topContracts, loading }: any) {
+function TopContractsPanel({ topContracts }: { topContracts: { name: string; count: number }[] }) {
   return (
     <div className="glass-card rounded-2xl p-6">
       <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
@@ -225,7 +236,7 @@ function TopContractsPanel({ topContracts, loading }: any) {
         Top Contracts
       </h3>
       <div className="space-y-3">
-        {topContracts.map((c: any, i: number) => (
+        {topContracts.map((c, i: number) => (
           <div key={i} className="flex items-center justify-between p-3 rounded-xl bg-white/5 hover:bg-white/10 transition-colors border border-white/5">
             <div className="flex items-center gap-3">
               <span className="w-6 h-6 rounded-full bg-slate-800 flex items-center justify-center text-xs font-bold text-slate-400">
@@ -241,23 +252,45 @@ function TopContractsPanel({ topContracts, loading }: any) {
   );
 }
 
-function SystemHealthPanel() {
+interface ChainStatusPanelProps {
+  isConnected: boolean;
+  chainId: string | null;
+  chains: Array<{ chainId: string; isActive: boolean; syncStatus?: string }>;
+  activeChain?: { chainId: string; syncStatus?: string };
+}
+
+function ChainStatusPanel({ isConnected, chainId, chains, activeChain }: ChainStatusPanelProps) {
   return (
     <div className="glass-card rounded-2xl p-6">
       <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-        <Cpu className="w-5 h-5 text-blue-400" />
-        System Health
+        <Link2 className="w-5 h-5 text-purple-400" />
+        Microchain Status
       </h3>
-      <div className="grid grid-cols-2 gap-3">
-        <div className="p-3 bg-emerald-500/10 rounded-xl border border-emerald-500/20 text-center">
-          <p className="text-xs text-emerald-400 font-medium uppercase mb-1">Status</p>
-          <p className="text-lg font-bold text-white">Optimal</p>
+      {isConnected ? (
+        <div className="space-y-3">
+          <div className="p-3 bg-emerald-500/10 rounded-xl border border-emerald-500/20">
+            <p className="text-xs text-emerald-400 font-medium uppercase mb-1">Active Chain</p>
+            <p className="text-sm font-mono text-white">{truncateAddress(chainId || '', 10, 6)}</p>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="p-3 bg-purple-500/10 rounded-xl border border-purple-500/20 text-center">
+              <p className="text-xs text-purple-400 font-medium uppercase mb-1">Chains</p>
+              <p className="text-lg font-bold text-white">{chains.length}</p>
+            </div>
+            <div className="p-3 bg-blue-500/10 rounded-xl border border-blue-500/20 text-center">
+              <p className="text-xs text-blue-400 font-medium uppercase mb-1">Status</p>
+              <p className="text-lg font-bold text-white capitalize">
+                {activeChain?.syncStatus || 'Connected'}
+              </p>
+            </div>
+          </div>
         </div>
-        <div className="p-3 bg-blue-500/10 rounded-xl border border-blue-500/20 text-center">
-          <p className="text-xs text-blue-400 font-medium uppercase mb-1">Latency</p>
-          <p className="text-lg font-bold text-white">24ms</p>
+      ) : (
+        <div className="text-center py-4">
+          <p className="text-slate-400 text-sm">Not connected</p>
+          <p className="text-slate-500 text-xs mt-1">Connect wallet to view chain status</p>
         </div>
-      </div>
+      )}
     </div>
   );
 }

@@ -1,0 +1,48 @@
+# Dependencies
+node_modules/
+target/
+.cargo/
+
+# Build outputs
+dist/
+build/
+*.wasm
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Test
+coverage/
+
+# Linera wallet (sensitive)
+.config/linera/
+
+# Git
+.git/
+.gitignore
+
+# Documentation
+docs/
+*.md
+!README.md
+
+# Dev files
+*.test.ts
+*.spec.ts
+__tests__/

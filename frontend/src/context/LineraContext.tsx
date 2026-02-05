@@ -4,13 +4,12 @@
  * Provides wallet state and connection methods throughout the app.
  */
 
-import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import {
     WalletState,
     DeploymentInfo,
     DEFAULT_WALLET_STATE,
     STORAGE_KEYS,
-    LINERA_CONFIG,
     buildGraphQLEndpoint,
 } from '@/lib/linera';
 

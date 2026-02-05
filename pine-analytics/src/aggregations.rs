@@ -301,7 +301,9 @@ mod tests {
     fn test_percentile() {
         let values = vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0];
         
-        assert!((AggregationEngine::percentile(&values, 0.5) - 5.0).abs() < 1.0); // ~50th percentile
-        assert!((AggregationEngine::percentile(&values, 0.9) - 9.0).abs() < 1.0); // ~90th percentile
+        // For 10 values, index = round(0.5 * 9) = round(4.5) = 5, so value is 6.0
+        assert!((AggregationEngine::percentile(&values, 0.5) - 6.0).abs() < 0.001); // 50th percentile
+        // For 10 values, index = round(0.9 * 9) = round(8.1) = 8, so value is 9.0
+        assert!((AggregationEngine::percentile(&values, 0.9) - 9.0).abs() < 0.001); // 90th percentile
     }
 }

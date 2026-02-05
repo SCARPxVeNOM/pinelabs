@@ -1,0 +1,108 @@
+# =============================================================================
+# Pine Analytics Linera Service - Dockerfile
+# =============================================================================
+# Builds Rust contracts and runs Linera GraphQL service
+# =============================================================================
+
+# Stage 1: Build WASM contracts
+FROM rust:1.86-slim AS builder
+
+# Install build dependencies
+RUN apt-get update && apt-get install -y \
+    pkg-config \
+    libssl-dev \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Add WASM target
+RUN rustup target add wasm32-unknown-unknown
+
+WORKDIR /app
+
+# Copy Cargo files for dependency caching
+COPY Cargo.toml Cargo.lock ./
+COPY pine-analytics/Cargo.toml pine-analytics/
+
+# Create dummy src for dependency build
+RUN mkdir -p pine-analytics/src && echo "fn main() {}" > pine-analytics/src/lib.rs
+
+# Build dependencies (cached layer)
+RUN cargo build --release --target wasm32-unknown-unknown -p pine-analytics 2>/dev/null || true
+
+# Copy actual source
+COPY pine-analytics pine-analytics/
+
+# Build contracts
+RUN cargo build --release --target wasm32-unknown-unknown -p pine-analytics
+
+# Stage 2: Runtime with Linera
+FROM debian:bookworm-slim AS runtime
+
+# Install runtime dependencies
+RUN apt-get update && apt-get install -y \
+    ca-certificates \
+    curl \
+    libssl3 \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Linera CLI
+RUN curl -L https://github.com/linera-io/linera-protocol/releases/download/v0.15.7/linera-service-linux-x86_64 -o /usr/local/bin/linera \
+    && chmod +x /usr/local/bin/linera \
+    || echo "Manual linera installation needed"
+
+# Create app directory
+WORKDIR /app
+
+# Copy WASM binaries from builder
+COPY --from=builder /app/target/wasm32-unknown-unknown/release/*.wasm /app/wasm/
+
+# Copy deployment scripts
+COPY scripts/deploy-testnet.sh /app/
+COPY scripts/run.sh /app/
+
+# Create config directory
+RUN mkdir -p /root/.config/linera
+
+# Environment
+ENV LINERA_PORT=8080
+ENV RUST_LOG=info
+
+EXPOSE 8080
+
+# Entrypoint script
+COPY <<'EOF' /app/entrypoint.sh
+#!/bin/bash
+set -e
+
+echo "🌲 Pine Analytics Linera Service"
+echo "================================"
+
+# Check if wallet exists
+if [ ! -f /root/.config/linera/wallet.json ]; then
+    echo "Initializing new wallet..."
+    
+    if [ "$LINERA_NETWORK" = "testnet-conway" ]; then
+        echo "Connecting to Conway Testnet..."
+        linera wallet init --with-new-chain --faucet https://faucet.testnet-conway.linera.net/ 2>&1 || echo "Wallet init failed - may need manual setup"
+    else
+        echo "Using local network..."
+    fi
+fi
+
+# Deploy application if not deployed
+if [ -f /app/wasm/pine_analytics_contract.wasm ]; then
+    echo "Deploying Pine Analytics contracts..."
+    linera project publish-and-create \
+        --contract /app/wasm/pine_analytics_contract.wasm \
+        --service /app/wasm/pine_analytics_service.wasm \
+        2>&1 || echo "App may already be deployed"
+fi
+
+# Start service
+echo "Starting GraphQL service on port $LINERA_PORT..."
+exec linera service --port $LINERA_PORT
+EOF
+
+RUN chmod +x /app/entrypoint.sh
+
+ENTRYPOINT ["/app/entrypoint.sh"]

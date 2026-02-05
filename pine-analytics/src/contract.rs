@@ -257,10 +257,10 @@ impl Contract for AnalyticsContract {
                 request_id,
                 source_chain,
                 metric_queries,
-                callback_chain,
+                callback_chain: _,
             } => {
                 let results = self.process_aggregation_queries(&metric_queries).await;
-                let proof = self.state.merkle_index.get_root().map(|root| MerkleProof {
+                let _proof = self.state.merkle_index.get_root().map(|root| MerkleProof {
                     path: vec![],
                     leaf_hash: root,
                     event_id: 0,
