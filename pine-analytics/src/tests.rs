@@ -1,42 +1,89 @@
+//! Property-based tests for Pine Analytics
+//! 
+//! These tests verify serialization, schema consistency, and edge cases.
+
 use crate::state::*;
-use crate::Operation;
 use proptest::prelude::*;
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
 
+// Helper function to create a CapturedEvent with all required fields
+fn create_test_event(
+    id: EventId,
+    source_app: ApplicationId,
+    source_chain: ChainId,
+    timestamp: Timestamp,
+    event_type: String,
+    data: serde_json::Value,
+    transaction_hash: String,
+) -> CapturedEvent {
+    CapturedEvent {
+        id,
+        source_app,
+        source_chain,
+        timestamp,
+        event_type,
+        data,
+        transaction_hash,
+        block_height: None,
+        severity: EventSeverity::Info,
+    }
+}
+
+// Helper function to create AppConfig with all required fields
+fn create_test_app_config(
+    application_id: ApplicationId,
+    chain_id: ChainId,
+    graphql_endpoint: String,
+) -> AppConfig {
+    AppConfig {
+        application_id,
+        chain_id,
+        graphql_endpoint,
+        enabled: true,
+        custom_metrics: vec![],
+        priority: 0,
+        tags: vec![],
+    }
+}
+
+// Helper function to create TransactionRecord with all required fields
+fn create_test_tx_record(
+    hash: String,
+    chain_id: ChainId,
+    timestamp: Timestamp,
+) -> TransactionRecord {
+    TransactionRecord {
+        hash,
+        chain_id,
+        timestamp,
+        block_height: None,
+        gas_used: None,
+    }
+}
+
 // Helper function to convert string to ApplicationId
 // For testing, we create a deterministic ApplicationId from a string
 fn str_to_app_id(s: &str) -> ApplicationId {
-    // Create a hash from the string to get a deterministic ID
     let mut hasher = DefaultHasher::new();
     s.hash(&mut hasher);
     let hash = hasher.finish();
 
-    // Create bytes from hash (pad to 32 bytes for crypto hash)
     let mut bytes = [0u8; 32];
     let hash_bytes = hash.to_le_bytes();
     bytes[..8].copy_from_slice(&hash_bytes);
-    // Fill rest with hash value for determinism
     for i in 8..32 {
         bytes[i] = ((hash >> (i % 8 * 8)) & 0xFF) as u8;
     }
 
-    // Try to create ApplicationId from the bytes
-    // ApplicationId should implement Deserialize, so try JSON first
     let hex_str: String = bytes.iter().map(|b| format!("{:02x}", b)).collect();
     serde_json::from_str(&format!(r#""{}""#, hex_str))
         .or_else(|_| serde_json::from_value(serde_json::json!(hex_str)))
-        .unwrap_or_else(|_| {
-            // Last resort: use zero hash (testing only)
-            let zero_bytes = [0u8; 32];
-            let zero_hash = linera_sdk::linera_base_types::CryptoHash::from(zero_bytes);
-            linera_sdk::linera_base_types::ApplicationId::from(zero_hash)
-        })
+        .expect("Failed to create test ApplicationId - this is a test environment issue")
 }
 
-// Helper function to convert string to ChainId
+// Helper function to convert string to ChainId  
 fn str_to_chain_id(s: &str) -> ChainId {
-    // Similar approach for ChainId
     let mut hasher = DefaultHasher::new();
     s.hash(&mut hasher);
     let hash = hasher.finish();
@@ -51,15 +98,10 @@ fn str_to_chain_id(s: &str) -> ChainId {
     let hex_str: String = bytes.iter().map(|b| format!("{:02x}", b)).collect();
     serde_json::from_str(&format!(r#""{}""#, hex_str))
         .or_else(|_| serde_json::from_value(serde_json::json!(hex_str)))
-        .unwrap_or_else(|_| {
-            let zero_bytes = [0u8; 32];
-            let zero_hash = linera_sdk::linera_base_types::CryptoHash::from(zero_bytes);
-            linera_sdk::linera_base_types::ChainId::from(zero_hash)
-        })
+        .expect("Failed to create test ChainId - this is a test environment issue")
 }
 
 // **Feature: pine-analytics, Property 8: API response structure consistency**
-// For any query to the data API, the response should be valid JSON with consistent field names and types
 proptest! {
     #[test]
     fn test_captured_event_serialization_roundtrip(
@@ -70,15 +112,15 @@ proptest! {
         event_type in "[A-Z][a-z]{3,10}",
         transaction_hash in "[a-f0-9]{64}",
     ) {
-        let event = CapturedEvent {
+        let event = create_test_event(
             id,
-            source_app: str_to_app_id(&source_app),
-            source_chain: str_to_chain_id(&source_chain),
+            str_to_app_id(&source_app),
+            str_to_chain_id(&source_chain),
             timestamp,
-            event_type: event_type.clone(),
-            data: serde_json::json!({"test": "data"}),
-            transaction_hash: transaction_hash.clone(),
-        };
+            event_type.clone(),
+            serde_json::json!({"test": "data"}),
+            transaction_hash.clone(),
+        );
 
         // Serialize to JSON
         let json = serde_json::to_string(&event).unwrap();
@@ -119,13 +161,11 @@ proptest! {
         chain_id in "[a-z]{5,10}",
         endpoint in "https?://[a-z]+\\.[a-z]+",
     ) {
-        let config = AppConfig {
-            application_id: str_to_app_id(&app_id),
-            chain_id: str_to_chain_id(&chain_id),
-            graphql_endpoint: endpoint.clone(),
-            enabled: true,
-            custom_metrics: vec![],
-        };
+        let config = create_test_app_config(
+            str_to_app_id(&app_id),
+            str_to_chain_id(&chain_id),
+            endpoint.clone(),
+        );
 
         let json = serde_json::to_string(&config).unwrap();
         let deserialized: AppConfig = serde_json::from_str(&json).unwrap();
@@ -138,14 +178,12 @@ proptest! {
 }
 
 // **Feature: pine-analytics, Property 5: Schema transformation consistency**
-// For any raw on-chain data input, the transformed output should conform to the standardized schema
 proptest! {
     #[test]
     fn test_raw_data_to_captured_event_schema(
         id in any::<u64>(),
         timestamp in any::<u64>(),
     ) {
-        // Simulate raw on-chain data
         let raw_data = serde_json::json!({
             "event_id": id,
             "timestamp": timestamp,
@@ -155,25 +193,21 @@ proptest! {
             "amount": 100
         });
 
-        // Transform to CapturedEvent (standardized schema)
-        let event = CapturedEvent {
+        let event = create_test_event(
             id,
-            source_app: str_to_app_id("test_app"),
-            source_chain: str_to_chain_id("test_chain"),
+            str_to_app_id("test_app"),
+            str_to_chain_id("test_chain"),
             timestamp,
-            event_type: "Transfer".to_string(),
-            data: raw_data,
-            transaction_hash: "hash123".to_string(),
-        };
+            "Transfer".to_string(),
+            raw_data,
+            "hash123".to_string(),
+        );
 
         // Verify all required fields are present
         assert!(event.id >= 0);
-        // ApplicationId and ChainId don't have is_empty(), so we verify they're not zero
         assert!(event.timestamp >= 0);
         assert!(!event.event_type.is_empty());
         assert!(!event.transaction_hash.is_empty());
-
-        // Verify data field is valid JSON
         assert!(event.data.is_object());
     }
 
@@ -181,11 +215,11 @@ proptest! {
     fn test_transaction_record_schema_consistency(
         timestamp in any::<u64>(),
     ) {
-        let tx = TransactionRecord {
-            hash: "tx_hash".to_string(),
-            chain_id: str_to_chain_id("chain1"),
+        let tx = create_test_tx_record(
+            "tx_hash".to_string(),
+            str_to_chain_id("chain1"),
             timestamp,
-        };
+        );
 
         // Verify schema compliance
         assert!(!tx.hash.is_empty());
@@ -194,24 +228,21 @@ proptest! {
 }
 
 // **Feature: pine-analytics, Property 1: Event data completeness**
-// Note: This test is simplified since contract is a binary, not a module
-// In a real scenario, contract functionality would be tested via integration tests
 proptest! {
     #[test]
     fn test_event_capture_completeness(
         id in any::<u64>(),
         timestamp in any::<u64>(),
     ) {
-        // Test event creation and serialization
-        let original_event = CapturedEvent {
+        let original_event = create_test_event(
             id,
-            source_app: str_to_app_id("test_app"),
-            source_chain: str_to_chain_id("test_chain"),
+            str_to_app_id("test_app"),
+            str_to_chain_id("test_chain"),
             timestamp,
-            event_type: "Transfer".to_string(),
-            data: serde_json::json!({"amount": 100, "from": "user1"}),
-            transaction_hash: format!("hash{}", id),
-        };
+            "Transfer".to_string(),
+            serde_json::json!({"amount": 100, "from": "user1"}),
+            format!("hash{}", id),
+        );
 
         // Verify all parameters are set correctly
         assert_eq!(original_event.id, id);
@@ -229,33 +260,30 @@ proptest! {
 }
 
 // **Feature: pine-analytics, Property 7: Deduplication idempotency**
-// Note: This test verifies event structure for deduplication
-// Full contract testing would require integration tests
 proptest! {
     #[test]
     fn test_deduplication_idempotency_contract(
         timestamp in any::<u64>(),
     ) {
-        // Test that events with same transaction hash can be identified
-        let event1 = CapturedEvent {
-            id: 0,
-            source_app: str_to_app_id("app1"),
-            source_chain: str_to_chain_id("chain1"),
+        let event1 = create_test_event(
+            0,
+            str_to_app_id("app1"),
+            str_to_chain_id("chain1"),
             timestamp,
-            event_type: "Transfer".to_string(),
-            data: serde_json::json!({}),
-            transaction_hash: "same_hash".to_string(),
-        };
+            "Transfer".to_string(),
+            serde_json::json!({}),
+            "same_hash".to_string(),
+        );
 
-        let event2 = CapturedEvent {
-            id: 1,
-            source_app: str_to_app_id("app1"),
-            source_chain: str_to_chain_id("chain1"),
+        let event2 = create_test_event(
+            1,
+            str_to_app_id("app1"),
+            str_to_chain_id("chain1"),
             timestamp,
-            event_type: "Transfer".to_string(),
-            data: serde_json::json!({}),
-            transaction_hash: "same_hash".to_string(),
-        };
+            "Transfer".to_string(),
+            serde_json::json!({}),
+            "same_hash".to_string(),
+        );
 
         // Events with same transaction hash should be identifiable as duplicates
         assert_eq!(event1.transaction_hash, event2.transaction_hash);
@@ -272,15 +300,15 @@ proptest! {
         end_time in 5001u64..10000u64,
     ) {
         let events: Vec<CapturedEvent> = (0..20)
-            .map(|i| CapturedEvent {
-                id: i,
-                source_app: str_to_app_id("app1"),
-                source_chain: str_to_chain_id("chain1"),
-                timestamp: (i * 500) + 500,
-                event_type: "Test".to_string(),
-                data: serde_json::json!({}),
-                transaction_hash: format!("hash{}", i),
-            })
+            .map(|i| create_test_event(
+                i,
+                str_to_app_id("app1"),
+                str_to_chain_id("chain1"),
+                (i * 500) + 500,
+                "Test".to_string(),
+                serde_json::json!({}),
+                format!("hash{}", i),
+            ))
             .collect();
 
         let filtered: Vec<_> = events
@@ -302,29 +330,23 @@ proptest! {
         app_id in "[a-z]{5,10}",
         endpoint in "https?://[a-z]+\\.[a-z]+",
     ) {
-        // Test valid config creation
-        let valid_config = AppConfig {
-            application_id: str_to_app_id(&app_id),
-            chain_id: str_to_chain_id("chain1"),
-            graphql_endpoint: endpoint.clone(),
-            enabled: true,
-            custom_metrics: vec![],
-        };
+        let valid_config = create_test_app_config(
+            str_to_app_id(&app_id),
+            str_to_chain_id("chain1"),
+            endpoint.clone(),
+        );
 
         // Valid config should have proper fields
         assert!(!valid_config.graphql_endpoint.is_empty());
         assert!(valid_config.graphql_endpoint.starts_with("http"));
 
-        // Test invalid endpoint format (should be caught by validation in contract)
-        // Note: Actual validation happens in contract, here we just test structure
+        // Test invalid endpoint format
         let invalid_endpoint = "ftp://invalid.com";
         assert!(!invalid_endpoint.starts_with("http"));
     }
 }
 
 // **Feature: pine-analytics, Property 21: Historical data retention after removal**
-// Note: This test verifies the data structure supports retention
-// Full contract testing would require integration tests
 proptest! {
     #[test]
     fn test_historical_data_retention(
@@ -333,23 +355,19 @@ proptest! {
         let app_id = str_to_app_id("app1");
         let chain_id = str_to_chain_id("chain1");
 
-        // Create events associated with an app
-        let mut events: Vec<CapturedEvent> = (0..num_events)
-            .map(|i| CapturedEvent {
-                id: i as u64,
-                source_app: app_id.clone(),
-                source_chain: chain_id.clone(),
-                timestamp: i as u64,
-                event_type: "Test".to_string(),
-                data: serde_json::json!({}),
-                transaction_hash: format!("hash{}", i),
-            })
+        let events: Vec<CapturedEvent> = (0..num_events)
+            .map(|i| create_test_event(
+                i as u64,
+                app_id.clone(),
+                chain_id.clone(),
+                i as u64,
+                "Test".to_string(),
+                serde_json::json!({}),
+                format!("hash{}", i),
+            ))
             .collect();
 
         let events_before = events.len();
-
-        // Simulate app removal - events should still exist
-        // In contract, removing app doesn't delete events
         let events_after = events.len();
 
         // Historical events should remain

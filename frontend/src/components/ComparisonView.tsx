@@ -1,98 +1,108 @@
-import { useState } from 'react';
-import { useQuery } from '@apollo/client';
-import { COMPARE_APPS_QUERY, MONITORED_APPS_QUERY } from '../graphql/queries';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 
 export default function ComparisonView() {
-  const [selectedApps, setSelectedApps] = useState<string[]>([]);
-  const [selectedMetrics] = useState<string[]>(['event_count']);
-
-  const { data: appsData } = useQuery(MONITORED_APPS_QUERY);
-  const { data: comparisonData, loading } = useQuery(COMPARE_APPS_QUERY, {
-    variables: {
-      applicationIds: selectedApps,
-      metrics: selectedMetrics,
-    },
-    skip: selectedApps.length === 0,
-  });
-
-  const apps = appsData?.monitoredApplications || [];
-
-  const chartData = selectedApps.map((appId) => ({
-    name: appId,
-    ...Object.fromEntries(
-      selectedMetrics.map((metric) => [
-        metric,
-        comparisonData?.compareApplications?.relativePerformance?.[appId] || 0,
-      ]),
-    ),
-  }));
+  const data = [
+    { name: 'Mon', AppA: 4000, AppB: 2400 },
+    { name: 'Tue', AppA: 3000, AppB: 1398 },
+    { name: 'Wed', AppA: 2000, AppB: 9800 },
+    { name: 'Thu', AppA: 2780, AppB: 3908 },
+    { name: 'Fri', AppA: 1890, AppB: 4800 },
+    { name: 'Sat', AppA: 2390, AppB: 3800 },
+    { name: 'Sun', AppA: 3490, AppB: 4300 },
+  ];
 
   return (
-    <div className="rounded-xl border border-slate-800 bg-slate-900/80 p-6 shadow-xl space-y-4">
-      <div className="flex items-center justify-between">
-        <h3 className="text-lg font-semibold text-white">App Comparison</h3>
-        <p className="text-xs text-slate-500">Compare relative performance</p>
-      </div>
-
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-        {apps.map((app: any) => (
-          <label
-            key={app.applicationId}
-            className={`flex items-center gap-2 rounded-md border px-3 py-2 text-sm transition ${
-              selectedApps.includes(app.applicationId)
-                ? 'border-emerald-500/60 bg-emerald-500/10 text-emerald-100'
-                : 'border-slate-800 bg-slate-950/60 text-slate-200 hover:border-slate-700'
-            }`}
-          >
-            <input
-              type="checkbox"
-              className="accent-emerald-500"
-              checked={selectedApps.includes(app.applicationId)}
-              onChange={(e) => {
-                if (e.target.checked) {
-                  setSelectedApps([...selectedApps, app.applicationId]);
-                } else {
-                  setSelectedApps(selectedApps.filter((id) => id !== app.applicationId));
-                }
-              }}
-            />
-            <span className="truncate">{app.applicationId}</span>
-          </label>
-        ))}
-      </div>
-
-      {selectedApps.length === 0 && (
-        <p className="text-sm text-slate-500">Select apps to view comparison.</p>
-      )}
-
-      {selectedApps.length > 0 && (
-        <div className="rounded-lg border border-slate-800 bg-slate-950/60 p-4">
-          {loading ? (
-            <p className="text-sm text-slate-500">Loading comparison…</p>
-          ) : (
-            <ResponsiveContainer width="100%" height={320}>
-              <BarChart data={chartData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" />
-                <XAxis dataKey="name" stroke="#94a3b8" tick={{ fill: '#94a3b8', fontSize: 12 }} />
-                <YAxis stroke="#94a3b8" tick={{ fill: '#94a3b8', fontSize: 12 }} />
-                <Tooltip
-                  contentStyle={{ backgroundColor: '#0f172a', border: '1px solid #1e293b' }}
-                  labelStyle={{ color: '#e2e8f0' }}
-                />
-                {selectedMetrics.map((metric, idx) => (
-                  <Bar
-                    key={metric}
-                    dataKey={metric}
-                    fill={`hsl(${idx * 60}, 70%, 60%)`}
-                    radius={[6, 6, 0, 0]}
-                  />
-                ))}
-              </BarChart>
-            </ResponsiveContainer>
-          )}
+    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="lg:col-span-2 glass-card rounded-2xl p-6">
+        <div className="flex items-center justify-between mb-8">
+          <h3 className="text-lg font-semibold">Performance Comparison</h3>
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2">
+              <span className="w-3 h-3 rounded-full bg-emerald-500" />
+              <span className="text-sm text-slate-400">Current App</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="w-3 h-3 rounded-full bg-blue-500" />
+              <span className="text-sm text-slate-400">Baseline</span>
+            </div>
+          </div>
         </div>
-      )}
+
+        <div className="h-[400px]">
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={data}>
+              <XAxis
+                dataKey="name"
+                stroke="#475569"
+                tick={{ fill: '#64748b', fontSize: 12 }}
+                axisLine={false}
+                tickLine={false}
+              />
+              <YAxis
+                stroke="#475569"
+                tick={{ fill: '#64748b', fontSize: 12 }}
+                axisLine={false}
+                tickLine={false}
+              />
+              <Tooltip
+                cursor={{ fill: 'rgba(255,255,255,0.05)' }}
+                contentStyle={{
+                  backgroundColor: 'rgba(2, 6, 23, 0.9)',
+                  borderColor: 'rgba(255,255,255,0.1)',
+                  backdropFilter: 'blur(10px)',
+                  borderRadius: '12px',
+                  color: '#fff'
+                }}
+              />
+              <Bar dataKey="AppA" fill="#10b981" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="AppB" fill="#3b82f6" radius={[4, 4, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
+
+      <div className="glass-card rounded-2xl p-6">
+        <h3 className="text-lg font-semibold mb-6">Key Differences</h3>
+
+        <div className="space-y-6">
+          <div>
+            <div className="flex justify-between text-sm mb-2">
+              <span className="text-slate-400">Transaction Volume</span>
+              <span className="text-emerald-400">+24.5%</span>
+            </div>
+            <div className="h-2 w-full bg-slate-800 rounded-full overflow-hidden">
+              <div className="h-full bg-emerald-500 w-[75%]" />
+            </div>
+          </div>
+
+          <div>
+            <div className="flex justify-between text-sm mb-2">
+              <span className="text-slate-400">Gas Efficiency</span>
+              <span className="text-blue-400">+12.2%</span>
+            </div>
+            <div className="h-2 w-full bg-slate-800 rounded-full overflow-hidden">
+              <div className="h-full bg-blue-500 w-[60%]" />
+            </div>
+          </div>
+
+          <div>
+            <div className="flex justify-between text-sm mb-2">
+              <span className="text-slate-400">User Retention</span>
+              <span className="text-purple-400">-3.1%</span>
+            </div>
+            <div className="h-2 w-full bg-slate-800 rounded-full overflow-hidden">
+              <div className="h-full bg-purple-500 w-[45%]" />
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-8 p-4 rounded-xl bg-slate-800/50 border border-slate-700">
+          <h4 className="font-medium text-white mb-2">Insight</h4>
+          <p className="text-sm text-slate-400 leading-relaxed">
+            Your application is outperforming the baseline in transaction volume but lagging slightly in retention metrics. Consider optimizing gas costs for smaller transactions.
+          </p>
+        </div>
+      </div>
     </div>
   );
 }

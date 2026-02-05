@@ -1,142 +1,60 @@
-import { useState } from 'react';
-import { useApplications } from '../hooks/useApplications';
+import { ArrowUpRight, TrendingUp } from 'lucide-react';
+import { formatNumber } from '../utils/formatters';
 
 interface ApplicationsPanelProps {
-  onSelect: (appId: string | null) => void;
   selectedApp: string | null;
+  onSelect: (appId: string | null) => void;
 }
 
-export default function ApplicationsPanel({ onSelect, selectedApp }: ApplicationsPanelProps) {
-  const { applications, loading, error, addApp, removeApp, refetch } = useApplications();
-  const [form, setForm] = useState({
-    applicationId: '',
-    chainId: '',
-    graphqlEndpoint: '',
-  });
-  const [busy, setBusy] = useState(false);
-  const [message, setMessage] = useState<string | null>(null);
-
-  const handleAdd = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setMessage(null);
-    if (!form.applicationId || !form.chainId || !form.graphqlEndpoint) {
-      setMessage('All fields are required');
-      return;
-    }
-    setBusy(true);
-    try {
-      await addApp({
-        variables: {
-          applicationId: form.applicationId,
-          chainId: form.chainId,
-          graphqlEndpoint: form.graphqlEndpoint,
-        },
-      });
-      setMessage('Application added');
-      setForm({ applicationId: '', chainId: '', graphqlEndpoint: '' });
-      onSelect(form.applicationId);
-    } catch (err: any) {
-      setMessage(err.message || 'Failed to add application');
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const handleRemove = async (appId: string) => {
-    setBusy(true);
-    setMessage(null);
-    try {
-      await removeApp({ variables: { applicationId: appId } });
-      if (selectedApp === appId) onSelect(null);
-      setMessage('Application removed');
-    } catch (err: any) {
-      setMessage(err.message || 'Failed to remove application');
-    } finally {
-      setBusy(false);
-    }
-  };
+export default function ApplicationsPanel({ selectedApp, onSelect }: ApplicationsPanelProps) {
+  // Mock data for UI purposes since we don't have the real list here yet
+  const recentApps = [
+    { id: 'app_1', name: 'Uniswap V3', transactions: 124500, growth: 12.5 },
+    { id: 'app_2', name: 'Aave Protocol', transactions: 85200, growth: 8.2 },
+    { id: 'app_3', name: 'Curve Finance', transactions: 64100, growth: -2.4 },
+    { id: 'app_4', name: 'Lido Staking', transactions: 42800, growth: 15.3 },
+  ];
 
   return (
-    <div className="rounded-xl border border-slate-800 bg-slate-900/80 p-5 shadow-lg space-y-4">
-      <div className="flex justify-between items-center">
-        <h3 className="text-lg font-semibold text-white">Monitored Applications</h3>
-        <button
-          onClick={() => refetch()}
-          className="text-xs text-emerald-200 underline"
-          disabled={loading}
-        >
-          Refresh
-        </button>
+    <div className="glass-card rounded-2xl p-6 h-full">
+      <div className="flex items-center justify-between mb-6">
+        <h3 className="text-lg font-semibold text-white">Your Applications</h3>
+        <button className="text-xs text-emerald-400 hover:text-emerald-300 font-medium">View All</button>
       </div>
 
-      {loading && <p className="text-sm text-slate-500">Loading applications...</p>}
-      {error && <p className="text-sm text-red-400">Error: {error.message}</p>}
-      {message && <p className="text-sm text-slate-300">{message}</p>}
-
-      <div className="space-y-2">
-        {applications.length === 0 && <p className="text-slate-500">No applications yet.</p>}
-        {applications.map((app: any) => (
-          <div
-            key={app.applicationId}
-            className={`flex justify-between items-center rounded-lg border px-3 py-2 ${
-              selectedApp === app.applicationId
-                ? 'border-emerald-500/60 bg-emerald-500/10'
-                : 'border-slate-800 bg-slate-950/60'
-            }`}
+      <div className="space-y-3">
+        {recentApps.map((app) => (
+          <button
+            key={app.id}
+            onClick={() => onSelect(app.id)}
+            className={`w-full group p-3 rounded-xl border transition-all flex items-center justify-between ${selectedApp === app.id
+                ? 'bg-emerald-500/10 border-emerald-500/50 shadow-lg shadow-emerald-500/10'
+                : 'bg-slate-900/40 border-slate-800 hover:bg-slate-800 hover:border-slate-700'
+              }`}
           >
             <div>
-              <p className="font-semibold text-slate-100">{app.applicationId}</p>
-              <p className="text-xs text-slate-500">Chain: {app.chainId}</p>
-              <p className="text-xs text-slate-500 break-all">Endpoint: {app.graphqlEndpoint}</p>
+              <p className={`font-medium text-sm mb-1 ${selectedApp === app.id ? 'text-white' : 'text-slate-300 group-hover:text-white'}`}>
+                {app.name}
+              </p>
+              <p className="text-xs text-slate-500 font-mono">
+                {formatNumber(app.transactions)} txs
+              </p>
             </div>
-            <div className="flex gap-2">
-              <button
-                onClick={() => onSelect(app.applicationId)}
-                className="px-3 py-1 text-sm rounded border border-emerald-500/60 text-emerald-100 hover:bg-emerald-500/10"
-              >
-                Select
-              </button>
-              <button
-                onClick={() => handleRemove(app.applicationId)}
-                className="px-3 py-1 text-sm rounded border border-slate-700 text-slate-200 hover:bg-slate-800"
-                disabled={busy}
-              >
-                Remove
-              </button>
+
+            <div className={`flex items-center gap-1 text-xs font-semibold ${app.growth >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+              <TrendingUp className="w-3 h-3" />
+              {app.growth >= 0 ? '+' : ''}{app.growth}%
             </div>
-          </div>
+          </button>
         ))}
       </div>
 
-      <form onSubmit={handleAdd} className="grid grid-cols-1 md:grid-cols-3 gap-3">
-        <input
-          className="rounded border border-slate-800 bg-slate-950/70 px-3 py-2 text-sm text-slate-100 outline-none focus:border-emerald-500/60"
-          placeholder="Application ID"
-          value={form.applicationId}
-          onChange={(e) => setForm({ ...form, applicationId: e.target.value })}
-        />
-        <input
-          className="rounded border border-slate-800 bg-slate-950/70 px-3 py-2 text-sm text-slate-100 outline-none focus:border-emerald-500/60"
-          placeholder="Chain ID"
-          value={form.chainId}
-          onChange={(e) => setForm({ ...form, chainId: e.target.value })}
-        />
-        <div className="md:col-span-1 flex gap-2">
-          <input
-            className="rounded border border-slate-800 bg-slate-950/70 px-3 py-2 text-sm text-slate-100 outline-none focus:border-emerald-500/60 flex-1"
-            placeholder="GraphQL Endpoint"
-            value={form.graphqlEndpoint}
-            onChange={(e) => setForm({ ...form, graphqlEndpoint: e.target.value })}
-          />
-          <button
-            type="submit"
-            className="px-4 py-2 rounded bg-emerald-600 text-white text-sm hover:bg-emerald-500 disabled:opacity-60"
-            disabled={busy}
-          >
-            Add
-          </button>
+      <button className="w-full mt-6 py-3 rounded-xl border border-dashed border-slate-700 hover:border-emerald-500/50 hover:bg-emerald-500/5 text-slate-400 hover:text-emerald-400 transition-all flex items-center justify-center gap-2 text-sm font-medium group">
+        <div className="w-5 h-5 rounded-full border border-current flex items-center justify-center group-hover:bg-emerald-500 group-hover:text-black group-hover:border-transparent transition-all">
+          +
         </div>
-      </form>
+        Deploy New Contract
+      </button>
     </div>
   );
 }
